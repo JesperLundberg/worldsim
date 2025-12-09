@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  worldsim:
+    build: ./app
+    container_name: worldsim
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - TZ=Europe/Stockholm
+    tmpfs:
+      - /opt/worldsim/db:size=20m
+    volumes:
+      - worldsim-www:/var/www/html/worldsim
+      - ./data:/opt/worldsim/backups
+      - ./data/archive:/opt/worldsim/archive
+
+  web:
+    build: ./web
+    container_name: worldsim_web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - worldsim-www:/usr/share/nginx/html/worldsim:ro
+
+volumes:
+  worldsim-www:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=20m

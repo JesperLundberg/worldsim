@@ -1,0 +1,16 @@
+LUA_PATH=/opt/worldsim/lua/?.lua;/opt/worldsim/lua/?/init.lua;;
+
+# World tick every 5 minutes
+*/5 * * * * root /opt/worldsim/lua/worldsim_tick.lua >> /var/log/cron.log 2>&1
+
+# Plots every 5 minutes, offset to avoid DB conflicts
+3-59/5 * * * * root /opt/worldsim/make_plots.sh >> /var/log/cron.log 2>&1
+
+# Status every minute (no DB writes)
+* * * * * root /opt/worldsim/lua/worldsim_status.lua >> /var/log/cron.log 2>&1
+
+# Save DB from tmpfs to disk every hour
+0 * * * * root sqlite3 /opt/worldsim/db/worldsim.db ".backup '/opt/worldsim/backups/worldsim.db'" >> /var/log/cron.log 2>&1
+
+# Rotate archives once a week (skeleton)
+0 0 * * 0 root sleep 15 && /opt/worldsim/lua/worldsim_rotate.lua >> /var/log/cron.log 2>&1

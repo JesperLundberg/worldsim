@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>World Simulation</title>
+    <meta http-equiv="refresh" content="60" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        margin: 0;
+        padding: 1rem;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        background: #111;
+        color: #eee;
+      }
+      h1 { margin-top: 0; }
+      .card {
+        background: #222;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 0.5rem;
+        background: #000;
+      }
+      .label {
+        color: #aaa;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>World Simulation</h1>
+
+    <div class="card">
+      <div class="label">Latest tick</div>
+      <div id="latest">Loading…</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Population &amp; Food</div>
+      <picture>
+        <source srcset="world_mobile.png" media="(max-width: 700px)" />
+        <img src="world.png" alt="World simulation graph" />
+      </picture>
+    </div>
+
+    <script>
+      fetch("status.json")
+        .then(function (res) {
+          if (!res.ok) throw new Error("Failed to load status.json");
+          return res.json();
+        })
+        .then(function (data) {
+          if (!data.has_data) {
+            document.getElementById("latest").textContent =
+              "No data yet. Waiting for first tick…";
+            return;
+          }
+          var txt =
+            "Time: " + data.last_tick +
+            " | Population: " + data.population +
+            " | Food: " + data.food.toFixed(1) +
+            " | Workers: " + data.workers;
+          document.getElementById("latest").textContent = txt;
+        })
+        .catch(function () {
+          document.getElementById("latest").textContent =
+            "Could not load latest status.";
+        });
+    </script>
+  </body>
+</html>
