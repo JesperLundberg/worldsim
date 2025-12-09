@@ -11,10 +11,13 @@ RUN apt-get update &&     apt-get install -y --no-install-recommends \
         gnuplot-nox \
         curl \
         cron \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN luarocks install lsqlite3 && \
-    luarocks install dkjson
+        build-essential \
+        libsqlite3-dev && \
+    luarocks --lua-version=5.1 install lsqlite3 && \
+    luarocks --lua-version=5.1 install dkjson && \
+    apt-get remove -y build-essential libsqlite3-dev && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 WORKDIR /opt/worldsim
 
