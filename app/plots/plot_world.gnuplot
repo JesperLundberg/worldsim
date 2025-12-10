@@ -20,7 +20,7 @@ set yrange [0:*]
 
 # Last 2 hours based on epoch seconds
 now        = time(0)
-twentofour_hours  = now - 24*3600
+twentyfour_hours  = now - 24*3600
 set xrange [twentyfour_hours:now]
 
 unset key  # legend handled in HTML

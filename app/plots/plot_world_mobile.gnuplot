@@ -18,7 +18,7 @@ set format x "%H:%M\n%d-%m"
 set yrange [0:*]
 
 now        = time(0)
-twentofour_hours  = now - 24*3600
+twentyfour_hours  = now - 24*3600
 set xrange [twentyfour_hours:now]
 
 unset key
