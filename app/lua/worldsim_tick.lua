@@ -2,12 +2,23 @@
 
 -- worldsim_tick.lua
 -- One simulation tick: read latest state, compute next state, store in SQLite.
+--
+-- Tick frequency: 1 tick per real minute (via cron).
+-- Simulated year length: 60 ticks (~1 real hour).
+-- Seasons (15 ticks each):
+--   ticks  0–14: winter  -> small food deficit
+--   ticks 15–29: spring  -> balanced
+--   ticks 30–44: summer  -> surplus
+--   ticks 45–59: autumn  -> balanced
 
 local sqlite3 = require("lsqlite3")
 local config = require("worldsim_config")
 local utils = require("worldsim_utils")
 
 local DB_PATH = config.DB_PATH
+
+-- Base production per worker before seasonal modifiers.
+local BASE_PRODUCTION_PER_WORKER = 2.5
 
 -- Return current UTC timestamp in ISO-8601 format.
 local function now_utc_iso()
@@ -61,8 +72,44 @@ local function get_workers_ratio(population)
 	end
 end
 
+-- Get season info from a simulated tick index.
+-- We use the autoincrement id as a tick counter:
+--   tick_index = 0 for the first row, 1 for the second, etc.
+-- Year length: 60 ticks.
+-- Seasons (15 ticks each):
+--   0–14:  winter  (slight deficit)
+--   15–29: spring  (roughly balanced)
+--   30–44: summer  (surplus)
+--   45–59: autumn  (roughly balanced)
+local function get_season_from_tick(tick_index)
+	local year_length = 60
+	local season_length = 15
+
+	local pos = tick_index % year_length -- 0..59
+
+	if pos < season_length then
+		return "winter", 0.9 -- 10% less than balance: small food deficit
+	elseif pos < season_length * 2 then
+		return "spring", 1.0 -- balanced
+	elseif pos < season_length * 3 then
+		return "summer", 1.2 -- surplus
+	else
+		return "autumn", 1.0 -- balanced
+	end
+end
+
 -- Compute the next state of the world based on the previous state.
 local function compute_next_state(last)
+	-- Decide tick index.
+	-- For the very first row we treat tick_index as 0.
+	local tick_index = 0
+	if last and last.id then
+		-- last.id == 1 for first row; using id directly as tick index is fine.
+		tick_index = last.id
+	end
+
+	local season_name, season_factor = get_season_from_tick(tick_index)
+
 	-- If no previous state exists, create an initial world.
 	if not last then
 		local population = 100
@@ -71,9 +118,9 @@ local function compute_next_state(last)
 
 		return {
 			population = population,
-			food = 400.0,
+			food = 500.0, -- enough buffer to survive the first simulated winter
 			workers = workers,
-			notes = "Initial world state",
+			notes = string.format("Initial world state; season=%s", season_name),
 		}
 	end
 
@@ -89,10 +136,9 @@ local function compute_next_state(last)
 
 	-- 2) Food dynamics.
 	--    Each person eats a fixed amount.
-	--    Each worker produces a fixed amount.
-	--    These values are tuned so that there is a possible balance.
+	--    Each worker produces a season-modified amount.
 	local consumption_per_person = 1.0 -- food units per person per tick
-	local production_per_worker = 2.5 -- food units per worker per tick
+	local production_per_worker = BASE_PRODUCTION_PER_WORKER * season_factor
 
 	local produced = workers * production_per_worker
 	local consumed = population * consumption_per_person
@@ -108,26 +154,36 @@ local function compute_next_state(last)
 	if population > 0 then
 		local food_per_capita = food_next / population
 
-		-- Plenty of food -> gentle growth.
 		-- Thresholds are in "food units per person" based on the 1.0 consumption rate.
-		if food_per_capita > 8 then
-			-- about 0.5% per tick, at least +1
-			local growth = math.max(1, math.floor(population * 0.005))
+
+		-- Very high abundance -> strong growth.
+		if food_per_capita > 10 then
+			local growth = math.max(1, math.floor(population * 0.015)) -- +1.5% per tick
 			population_next = population + growth
 
-		-- Comfortable -> roughly stable.
+		-- Good abundance -> steady growth.
+		elseif food_per_capita > 6 then
+			local growth = math.max(1, math.floor(population * 0.01)) -- +1.0% per tick
+			population_next = population + growth
+
+		-- Enough to grow slightly.
 		elseif food_per_capita > 4 then
+			local growth = math.max(1, math.floor(population * 0.005)) -- +0.5% per tick
+			population_next = population + growth
+
+		-- Not great, but stable.
+		elseif food_per_capita > 2 then
 			population_next = population
 
-		-- Tight but not catastrophic -> slow decline.
-		elseif food_per_capita > 2 then
-			local decline = math.max(1, math.floor(population * 0.005))
+		-- Low food -> slow decline.
+		elseif food_per_capita > 1 then
+			local decline = math.max(1, math.floor(population * 0.005)) -- -0.5% per tick
 			population_next = population - decline
 
-		-- Very little food -> faster decline.
+		-- Starvation -> faster decline.
 		else
-			local strong_decline = math.max(1, math.floor(population * 0.01))
-			population_next = population - strong_decline
+			local decline = math.max(1, math.floor(population * 0.015)) -- -1.5% per tick
+			population_next = population - decline
 		end
 	end
 
@@ -143,11 +199,19 @@ local function compute_next_state(last)
 		workers_next = population_next
 	end
 
+	local note = string.format(
+		"season=%s; season_factor=%.2f; prod_per_worker=%.2f; tick_index=%d",
+		season_name,
+		season_factor,
+		production_per_worker,
+		tick_index
+	)
+
 	return {
 		population = population_next,
 		food = food_next,
 		workers = workers_next,
-		notes = nil,
+		notes = note,
 	}
 end
 
