@@ -20,6 +20,8 @@ set xrange [two_hours:now]
 
 set yrange [0:*]
 
+unset key  # legend handled in HTML
+
 set title "Births & Deaths (last 2 hours)" tc rgb "#4c4f69"
 set xlabel "Time" tc rgb "#4c4f69"
 set ylabel "Count" tc rgb "#4c4f69"
