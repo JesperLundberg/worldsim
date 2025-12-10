@@ -1,3 +1,3 @@
 FROM nginx:alpine
 
-COPY worldsim.html /usr/share/nginx/html/worldsim/index.html
+COPY worldsim.html /usr/share/nginx/html/worldsim.html

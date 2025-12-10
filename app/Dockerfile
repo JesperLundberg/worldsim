@@ -11,6 +11,7 @@ RUN apt-get update &&     apt-get install -y --no-install-recommends \
         gnuplot-nox \
         curl \
         cron \
+        tzdata \
         build-essential \
         libsqlite3-dev && \
     luarocks --lua-version=5.1 install lsqlite3 && \

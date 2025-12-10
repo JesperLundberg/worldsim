@@ -6,71 +6,388 @@
     <meta http-equiv="refresh" content="60" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
-      body {
+      :root {
+        --bg: #eff1f5;
+        --bg-soft: #e6e9ef;
+        --border: #ccd0da;
+        --text: #4c4f69;
+        --subtext: #5c5f77;
+        --accent: #1e66f5;
+        --accent-2: #dc8a78;
+        --green: #40a02b;
+        --yellow: #df8e1d;
+      }
+
+      * {
+        box-sizing: border-box;
         margin: 0;
-        padding: 1rem;
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-        background: #111;
-        color: #eee;
+        padding: 0;
       }
-      h1 { margin-top: 0; }
-      .card {
-        background: #222;
-        border-radius: 0.5rem;
-        padding: 1rem;
-        margin-bottom: 1rem;
+
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background: radial-gradient(circle at top, #f4f5fb 0, var(--bg) 60%);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
       }
-      img {
-        max-width: 100%;
+
+      .page {
+        max-width: 1100px;
+        margin: 1.5rem auto 2.5rem;
+        padding: 0 1rem;
+        width: 100%;
+      }
+
+      header {
+        text-align: center;
+        margin-bottom: 1.2rem;
+      }
+      header h1 {
+        font-size: 2rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 0.25rem;
+      }
+      header p {
+        font-size: 0.95rem;
+        color: var(--subtext);
+      }
+      header .tagline {
+        font-size: 0.8rem;
+        opacity: 0.85;
+      }
+
+      /* STATUS CARDS */
+      .status-row {
+        display: grid;
+        gap: 0.9rem;
+        margin-top: 1.2rem;
+      }
+      @media (min-width: 768px) {
+        .status-row {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+
+      .status-card {
+        background: #ffffffcc;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
+        padding: 0.7rem 0.8rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+
+      .status-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--subtext);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .status-title span.label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+
+      .status-dot {
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 999px;
+        background: var(--accent);
+      }
+
+      .status-value {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .status-sub {
+        font-size: 0.8rem;
+        color: var(--subtext);
+      }
+      .status-updated {
+        font-size: 0.7rem;
+        color: var(--subtext);
+        text-align: right;
+      }
+
+      /* CHARTS – STACKED */
+      .grid {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        margin-top: 2rem;
+      }
+
+      .chart-card {
+        background: var(--bg-soft);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        width: 100%;
+      }
+
+      .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .chart-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+
+      .chart-title span.dot {
+        width: 0.65rem;
+        height: 0.65rem;
+        border-radius: 999px;
+        background: var(--accent);
+      }
+
+      .chart-meta {
+        font-size: 0.85rem;
+        color: var(--subtext);
+      }
+
+      .chart-img-wrap {
+        margin-top: 0.5rem;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid var(--border);
+        width: 100%;
+      }
+
+      .chart-img-wrap img {
+        width: 100%;
         height: auto;
-        border-radius: 0.5rem;
-        background: #000;
+        display: block;
       }
-      .label {
-        color: #aaa;
-        font-size: 0.9rem;
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.15rem 0.6rem;
+        font-size: 0.78rem;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--subtext);
+        white-space: nowrap;
+      }
+
+      .pill-dot {
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 999px;
+        background: var(--accent);
+        flex-shrink: 0;
+      }
+
+      footer {
+        text-align: center;
+        font-size: 0.75rem;
+        color: var(--subtext);
+        margin-top: 2rem;
       }
     </style>
   </head>
+
   <body>
-    <h1>World Simulation</h1>
+    <div class="page">
+      <header>
+        <h1>World Simulation</h1>
+        <p>Lightweight world model running on your Pi.</p>
+        <p class="tagline">Auto-refresh every 60 seconds.</p>
+      </header>
 
-    <div class="card">
-      <div class="label">Latest tick</div>
-      <div id="latest">Loading…</div>
+      <!-- STATUS CARDS -->
+      <section class="status-row">
+        <article class="status-card">
+          <div class="status-title">
+            <span class="label"
+              ><span class="status-dot"></span> Population</span
+            >
+          </div>
+          <div class="status-value" id="status-pop-main">–</div>
+          <div class="status-sub">Current population</div>
+          <div class="status-updated" id="status-pop-updated">Updated: –</div>
+        </article>
+
+        <article class="status-card">
+          <div class="status-title">
+            <span class="label"
+              ><span
+                class="status-dot"
+                style="background: var(--accent-2)"
+              ></span>
+              Food</span
+            >
+          </div>
+          <div class="status-value" id="status-food-main">–</div>
+          <div class="status-sub">Food stores</div>
+          <div class="status-updated" id="status-food-updated">Updated: –</div>
+        </article>
+
+        <article class="status-card">
+          <div class="status-title">
+            <span class="label"
+              ><span
+                class="status-dot"
+                style="background: var(--yellow)"
+              ></span>
+              Workers</span
+            >
+          </div>
+          <div class="status-value" id="status-workers-main">–</div>
+          <div class="status-sub">Active workers</div>
+          <div class="status-updated" id="status-workers-updated">
+            Updated: –
+          </div>
+        </article>
+      </section>
+
+      <!-- GRAPH -->
+      <main class="grid">
+        <section class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">
+              <span class="dot"></span>
+              <span>Population &amp; Food</span>
+            </div>
+            <div class="pill">
+              <span class="pill-dot" style="background: #1e66f5"></span>
+              <span>Population</span>
+
+              <span
+                class="pill-dot"
+                style="background: #40a02b; margin-left: 0.5rem"
+              ></span>
+              <span>Food</span>
+
+              <span
+                class="pill-dot"
+                style="background: #df8e1d; margin-left: 0.5rem"
+              ></span>
+              <span>Workers</span>
+            </div>
+          </div>
+          <div class="chart-meta">
+            Last hour of simulation time (local time).
+          </div>
+          <div class="chart-img-wrap">
+            <picture>
+              <source
+                srcset="worldsim/world_mobile.png"
+                media="(max-width: 768px)"
+              />
+              <img src="worldsim/world.png" alt="World simulation chart" />
+            </picture>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        Simulated on Raspberry Pi • State stored in SQLite • Plots by gnuplot
+      </footer>
     </div>
 
-    <div class="card">
-      <div class="label">Population &amp; Food</div>
-      <picture>
-        <source srcset="world_mobile.png" media="(max-width: 700px)" />
-        <img src="world.png" alt="World simulation graph" />
-      </picture>
-    </div>
-
+    <!-- STATUS JSON SCRIPT -->
     <script>
-      fetch("status.json")
-        .then(function (res) {
-          if (!res.ok) throw new Error("Failed to load status.json");
-          return res.json();
-        })
-        .then(function (data) {
+      function formatTime(epochSeconds) {
+        if (!epochSeconds || epochSeconds <= 0) return "–";
+        const d = new Date(epochSeconds * 1000);
+
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mi = String(d.getMinutes()).padStart(2, "0");
+        const ss = String(d.getSeconds()).padStart(2, "0");
+
+        // Swedish-style local time: 2025-12-03 16:55:01
+        return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+      }
+
+      function safeNum(v, decimals) {
+        const n = Number(v);
+        if (!isFinite(n)) return null;
+        return decimals != null ? n.toFixed(decimals) : n.toString();
+      }
+
+      function setText(id, text) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+      }
+
+      async function loadStatus() {
+        try {
+          // Cache-bust on each refresh
+          const res = await fetch("worldsim/status.json?_=" + Date.now());
+          const data = await res.json();
+
           if (!data.has_data) {
-            document.getElementById("latest").textContent =
-              "No data yet. Waiting for first tick…";
+            setText("status-pop-main", "–");
+            setText("status-food-main", "–");
+            setText("status-workers-main", "–");
+            setText("status-pop-updated", "Updated: –");
+            setText("status-food-updated", "Updated: –");
+            setText("status-workers-updated", "Updated: –");
             return;
           }
-          var txt =
-            "Time: " + data.last_tick +
-            " | Population: " + data.population +
-            " | Food: " + data.food.toFixed(1) +
-            " | Workers: " + data.workers;
-          document.getElementById("latest").textContent = txt;
-        })
-        .catch(function () {
-          document.getElementById("latest").textContent =
-            "Could not load latest status.";
-        });
+
+          const ts = data.last_tick_epoch || 0;
+          const pop = safeNum(data.population, 0);
+          const food = safeNum(data.food, 1);
+          const workers = safeNum(data.workers, 0);
+
+          if (pop !== null) setText("status-pop-main", pop);
+          else setText("status-pop-main", "–");
+
+          if (food !== null) setText("status-food-main", food);
+          else setText("status-food-main", "–");
+
+          if (workers !== null) setText("status-workers-main", workers);
+          else setText("status-workers-main", "–");
+
+          const tsText = "Updated: " + formatTime(ts);
+          setText("status-pop-updated", tsText);
+          setText("status-food-updated", tsText);
+          setText("status-workers-updated", tsText);
+        } catch (e) {
+          console.error("Status update failed", e);
+          setText("status-pop-main", "–");
+          setText("status-food-main", "–");
+          setText("status-workers-main", "–");
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", loadStatus);
     </script>
   </body>
 </html>
