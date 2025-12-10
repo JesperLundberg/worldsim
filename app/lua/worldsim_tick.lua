@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS world_tick (
   population  INTEGER NOT NULL,
   food        REAL NOT NULL,
   workers     INTEGER NOT NULL,
+  births      INTEGER NOT NULL DEFAULT 0,
+  deaths      INTEGER NOT NULL DEFAULT 0,
   notes       TEXT
 );
   ]]
@@ -120,6 +122,8 @@ local function compute_next_state(last)
 			population = population,
 			food = 500.0, -- enough buffer to survive the first simulated winter
 			workers = workers,
+			births = 0,
+			deaths = 0,
 			notes = string.format("Initial world state; season=%s", season_name),
 		}
 	end
@@ -151,6 +155,9 @@ local function compute_next_state(last)
 	-- 3) Population reacts to food per capita.
 	local population_next = population
 
+	local births = 0
+	local deaths = 0
+
 	if population > 0 then
 		local food_per_capita = food_next / population
 
@@ -160,16 +167,19 @@ local function compute_next_state(last)
 		if food_per_capita > 10 then
 			local growth = math.max(1, math.floor(population * 0.015)) -- +1.5% per tick
 			population_next = population + growth
+			births = growth
 
 		-- Good abundance -> steady growth.
 		elseif food_per_capita > 6 then
 			local growth = math.max(1, math.floor(population * 0.01)) -- +1.0% per tick
 			population_next = population + growth
+			births = growth
 
 		-- Enough to grow slightly.
 		elseif food_per_capita > 4 then
 			local growth = math.max(1, math.floor(population * 0.005)) -- +0.5% per tick
 			population_next = population + growth
+			births = growth
 
 		-- Not great, but stable.
 		elseif food_per_capita > 2 then
@@ -179,16 +189,25 @@ local function compute_next_state(last)
 		elseif food_per_capita > 1 then
 			local decline = math.max(1, math.floor(population * 0.005)) -- -0.5% per tick
 			population_next = population - decline
+			deaths = decline
 
 		-- Starvation -> faster decline.
 		else
 			local decline = math.max(1, math.floor(population * 0.015)) -- -1.5% per tick
 			population_next = population - decline
+			deaths = decline
 		end
 	end
 
 	-- 4) Population is not allowed to drop below 2.
 	if population_next < 2 then
+		-- If we clamp up, count that as cancelled deaths.
+		if population_next < population then
+			deaths = deaths - (2 - population_next)
+			if deaths < 0 then
+				deaths = 0
+			end
+		end
 		population_next = 2
 	end
 
@@ -200,30 +219,42 @@ local function compute_next_state(last)
 	end
 
 	local note = string.format(
-		"season=%s; season_factor=%.2f; prod_per_worker=%.2f; tick_index=%d",
+		"season=%s; season_factor=%.2f; prod_per_worker=%.2f; tick_index=%d; births=%d; deaths=%d",
 		season_name,
 		season_factor,
 		production_per_worker,
-		tick_index
+		tick_index,
+		births,
+		deaths
 	)
 
 	return {
 		population = population_next,
 		food = food_next,
 		workers = workers_next,
+		births = births,
+		deaths = deaths,
 		notes = note,
 	}
 end
 
 local function insert_state(db, state)
 	local sql = [[
-INSERT INTO world_tick (ts_utc, population, food, workers, notes)
-VALUES (?, ?, ?, ?, ?);
+INSERT INTO world_tick (ts_utc, population, food, workers, births, deaths, notes)
+VALUES (?, ?, ?, ?, ?, ?, ?);
   ]]
 	local stmt = db:prepare(sql)
 	assert(stmt, "Failed to prepare insert")
 
-	stmt:bind_values(now_utc_iso(), state.population, state.food, state.workers, state.notes)
+	stmt:bind_values(
+		now_utc_iso(),
+		state.population,
+		state.food,
+		state.workers,
+		state.births or 0,
+		state.deaths or 0,
+		state.notes
+	)
 
 	assert(stmt:step() == sqlite3.DONE, "Failed to insert world state")
 	stmt:finalize()

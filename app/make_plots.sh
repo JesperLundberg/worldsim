@@ -8,3 +8,6 @@ mkdir -p "$OUT_DIR"
 
 gnuplot "$PLOT_DIR/plot_world.gnuplot"
 gnuplot "$PLOT_DIR/plot_world_mobile.gnuplot"
+
+gnuplot "$PLOT_DIR/plot_birth_death.gnuplot"
+gnuplot "$PLOT_DIR/plot_birth_death_mobile.gnuplot"

@@ -1,4 +1,3 @@
-<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -65,7 +64,6 @@
         opacity: 0.85;
       }
 
-      /* STATUS CARDS */
       .status-row {
         display: grid;
         gap: 0.9rem;
@@ -126,7 +124,6 @@
         text-align: right;
       }
 
-      /* CHARTS – STACKED */
       .grid {
         display: flex;
         flex-direction: column;
@@ -271,8 +268,9 @@
         </article>
       </section>
 
-      <!-- GRAPH -->
+      <!-- GRAPHS -->
       <main class="grid">
+        <!-- World chart -->
         <section class="chart-card">
           <div class="chart-header">
             <div class="chart-title">
@@ -296,9 +294,7 @@
               <span>Workers</span>
             </div>
           </div>
-          <div class="chart-meta">
-            Last hour of simulation time (local time).
-          </div>
+          <div class="chart-meta">Last 2 hours of simulation time.</div>
           <div class="chart-img-wrap">
             <picture>
               <source
@@ -306,6 +302,28 @@
                 media="(max-width: 768px)"
               />
               <img src="worldsim/world.png" alt="World simulation chart" />
+            </picture>
+          </div>
+        </section>
+
+        <!-- Births & deaths chart -->
+        <section class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">
+              <span class="dot" style="background: #40a02b"></span>
+              <span>Births &amp; Deaths</span>
+            </div>
+          </div>
+          <div class="chart-meta">
+            Births (green) and deaths (red), last 2 hours.
+          </div>
+          <div class="chart-img-wrap">
+            <picture>
+              <source
+                srcset="worldsim/birth_death_mobile.png"
+                media="(max-width: 768px)"
+              />
+              <img src="worldsim/birth_death.png" alt="Birth and death chart" />
             </picture>
           </div>
         </section>
@@ -330,7 +348,6 @@
         const mi = String(d.getMinutes()).padStart(2, "0");
         const ss = String(d.getSeconds()).padStart(2, "0");
 
-        // Swedish-style local time: 2025-12-03 16:55:01
         return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
       }
 
@@ -347,11 +364,10 @@
 
       async function loadStatus() {
         try {
-          // Cache-bust on each refresh
           const res = await fetch("worldsim/status.json?_=" + Date.now());
           const data = await res.json();
 
-          if (!data.has_data) {
+          if (!data || !data.has_data) {
             setText("status-pop-main", "–");
             setText("status-food-main", "–");
             setText("status-workers-main", "–");
@@ -366,14 +382,9 @@
           const food = safeNum(data.food, 1);
           const workers = safeNum(data.workers, 0);
 
-          if (pop !== null) setText("status-pop-main", pop);
-          else setText("status-pop-main", "–");
-
-          if (food !== null) setText("status-food-main", food);
-          else setText("status-food-main", "–");
-
-          if (workers !== null) setText("status-workers-main", workers);
-          else setText("status-workers-main", "–");
+          setText("status-pop-main", pop !== null ? pop : "–");
+          setText("status-food-main", food !== null ? food : "–");
+          setText("status-workers-main", workers !== null ? workers : "–");
 
           const tsText = "Updated: " + formatTime(ts);
           setText("status-pop-updated", tsText);
