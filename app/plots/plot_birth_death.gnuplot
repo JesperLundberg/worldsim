@@ -15,8 +15,8 @@ set timefmt "%s"
 set format x "%H:%M\n%d-%m"
 
 now        = time(0)
-two_hours  = now - 2*3600
-set xrange [two_hours:now]
+twentofour_hours  = now - 24*3600
+set xrange [twentyfour_hours:now]
 
 set yrange [0:*]
 
