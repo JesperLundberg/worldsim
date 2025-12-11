@@ -14,6 +14,8 @@
 -- This version includes:
 --   - mild stochastic variation in production and consumption
 --   - low-probability random births and deaths, independent of food
+--   - tuned food_per_capita thresholds (less doom-y)
+--   - recovery boost for small populations when food per capita is high
 
 local sqlite3 = require("lsqlite3")
 local config = require("worldsim_config")
@@ -26,8 +28,8 @@ local BASE_PRODUCTION_PER_WORKER = 2.5
 local BASE_CONSUMPTION_PER_PERSON = 1.0
 
 -- Baseline random birth/death rates per person per tick (very small).
-local BASELINE_BIRTH_RATE = 0.0003 -- expected births per person per tick
-local BASELINE_DEATH_RATE = 0.0002 -- expected deaths per person per tick
+local BASELINE_BIRTH_RATE = 0.0005 -- expected births per person per tick
+local BASELINE_DEATH_RATE = 0.00015 -- expected deaths per person per tick
 
 -- Seed RNG once per process.
 math.randomseed(os.time())
@@ -193,7 +195,7 @@ local function compute_next_state(last)
 	end
 
 	---------------------------------------------------------------------------
-	-- 3) Population reacts to food per capita (deterministic core).
+	-- 3) Population reacts to food per capita (tuned to be less doom-y).
 	---------------------------------------------------------------------------
 	local population_next = population
 	local births = 0
@@ -202,39 +204,37 @@ local function compute_next_state(last)
 	if population > 0 then
 		local food_per_capita = food_next / population
 
-		-- Thresholds are in "food units per person" based on BASE_CONSUMPTION_PER_PERSON.
-
 		-- Very high abundance -> strong growth.
-		if food_per_capita > 10 then
-			local growth = math.max(1, math.floor(population * 0.015)) -- +1.5% per tick
+		if food_per_capita > 8 then
+			local growth = math.max(1, math.floor(population * 0.02)) -- +2.0% per tick
 			population_next = population + growth
 			births = births + growth
 
 		-- Good abundance -> steady growth.
-		elseif food_per_capita > 6 then
-			local growth = math.max(1, math.floor(population * 0.01)) -- +1.0% per tick
+		elseif food_per_capita > 5 then
+			local growth = math.max(1, math.floor(population * 0.012)) -- +1.2% per tick
 			population_next = population + growth
 			births = births + growth
 
-		-- Enough to grow slightly.
-		elseif food_per_capita > 4 then
-			local growth = math.max(1, math.floor(population * 0.005)) -- +0.5% per tick
+		-- Slight surplus -> small growth.
+		elseif food_per_capita > 3 then
+			local growth = math.max(1, math.floor(population * 0.006)) -- +0.6% per tick
 			population_next = population + growth
 			births = births + growth
 
-		-- Not great, but stable.
-		elseif food_per_capita > 2 then
+		-- Barely enough -> roughly stable.
+		elseif food_per_capita > 1.8 then
 			population_next = population
 
-		-- Low food -> slow decline.
-		elseif food_per_capita > 1 then
-			local decline = math.max(1, math.floor(population * 0.005)) -- -0.5% per tick
+		-- Low food -> gentle decline.
+		elseif food_per_capita > 1.0 then
+			local decline = math.max(1, math.floor(population * 0.003)) -- -0.3% per tick
 			population_next = population - decline
 			deaths = deaths + decline
 
-		-- Starvation -> faster decline.
+		-- Starvation -> stronger decline.
 		else
-			local decline = math.max(1, math.floor(population * 0.015)) -- -1.5% per tick
+			local decline = math.max(1, math.floor(population * 0.01)) -- -1.0% per tick
 			population_next = population - decline
 			deaths = deaths + decline
 		end
@@ -270,7 +270,22 @@ local function compute_next_state(last)
 	end
 
 	---------------------------------------------------------------------------
-	-- 5) Clamp population minimum.
+	-- 5) Recovery boost for small populations when there is plenty of food.
+	---------------------------------------------------------------------------
+	if population_next > 0 then
+		local food_per_capita_next = food_next / population_next
+
+		-- If the population is small but food per capita is high,
+		-- add an extra burst of births to help recovery.
+		if population_next < 40 and food_per_capita_next > 5 then
+			local bonus = math.max(1, math.floor(population_next * 0.02)) -- +2% extra
+			population_next = population_next + bonus
+			births = births + bonus
+		end
+	end
+
+	---------------------------------------------------------------------------
+	-- 6) Clamp population minimum.
 	---------------------------------------------------------------------------
 	if population_next < 2 then
 		-- If we clamp up, adjust deaths to not count "impossible" deaths.
@@ -285,7 +300,7 @@ local function compute_next_state(last)
 	end
 
 	---------------------------------------------------------------------------
-	-- 6) Recompute workers for the new population.
+	-- 7) Recompute workers for the new population.
 	---------------------------------------------------------------------------
 	local workers_next_ratio = get_workers_ratio(population_next)
 	local workers_next = math.max(1, math.floor(population_next * workers_next_ratio))
