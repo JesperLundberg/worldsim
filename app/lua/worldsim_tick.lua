@@ -11,11 +11,12 @@
 --   ticks 30–44: summer  -> surplus
 --   ticks 45–59: autumn  -> balanced
 --
--- This version includes:
---   - mild stochastic variation in production and consumption
---   - low-probability random births and deaths, independent of food
---   - tuned food_per_capita thresholds (less doom-y)
---   - recovery boost for small populations when food per capita is high
+-- This version:
+--   - uses net food per capita (produced - consumed) to drive births/deaths
+--   - tends to grow when population is "too small" and stabilize when larger
+--   - includes mild stochasticity in production/consumption
+--   - includes low-probability random births/deaths (food-independent)
+--   - keeps a recovery boost for small populations with plenty of food
 
 local sqlite3 = require("lsqlite3")
 local config = require("worldsim_config")
@@ -24,7 +25,7 @@ local utils = require("worldsim_utils")
 local DB_PATH = config.DB_PATH
 
 -- Base rates before seasonal and random modifiers.
-local BASE_PRODUCTION_PER_WORKER = 2.5
+local BASE_PRODUCTION_PER_WORKER = 3.0 -- slightly higher to encourage growth
 local BASE_CONSUMPTION_PER_PERSON = 1.0
 
 -- Baseline random birth/death rates per person per tick (very small).
@@ -149,7 +150,7 @@ local function compute_next_state(last)
 
 		return {
 			population = population,
-			food = 500.0, -- enough buffer to survive the first simulated winter
+			food = 500.0, -- buffer so first winter is survivable
 			workers = workers,
 			births = 0,
 			deaths = 0,
@@ -172,7 +173,6 @@ local function compute_next_state(last)
 	---------------------------------------------------------------------------
 
 	-- Small random noise for production (±5%) and consumption (±2%).
-	-- This keeps the model mostly stable but slightly "alive".
 	local noise_prod = (math.random() - 0.5) * 0.10 -- -0.05 .. +0.05
 	local noise_cons = (math.random() - 0.5) * 0.04 -- -0.02 .. +0.02
 
@@ -189,51 +189,58 @@ local function compute_next_state(last)
 	local produced = workers * production_per_worker
 	local consumed = population * consumption_per_person
 
-	local food_next = food + produced - consumed
+	local delta_food = produced - consumed
+	local food_next = food + delta_food
 	if food_next < 0 then
 		food_next = 0
 	end
 
+	-- Net food per capita is what really matters for growth.
+	local net_per_capita = 0.0
+	if population > 0 then
+		net_per_capita = delta_food / population
+	end
+
 	---------------------------------------------------------------------------
-	-- 3) Population reacts to food per capita (tuned to be less doom-y).
+	-- 3) Population reacts to net food per capita.
+	--
+	-- Positive net_per_capita -> growth.
+	-- Slightly negative -> small decline.
+	-- Strongly negative -> stronger decline.
+	--
+	-- This makes the system tend to grow when "too small" (high net food/capita)
+	-- and stabilize when more people share the same production.
 	---------------------------------------------------------------------------
 	local population_next = population
 	local births = 0
 	local deaths = 0
 
 	if population > 0 then
-		local food_per_capita = food_next / population
-
-		-- Very high abundance -> strong growth.
-		if food_per_capita > 8 then
+		if net_per_capita > 0.5 then
+			-- Very strong surplus -> strong growth.
 			local growth = math.max(1, math.floor(population * 0.02)) -- +2.0% per tick
 			population_next = population + growth
 			births = births + growth
-
-		-- Good abundance -> steady growth.
-		elseif food_per_capita > 5 then
+		elseif net_per_capita > 0.2 then
+			-- Good surplus -> decent growth.
 			local growth = math.max(1, math.floor(population * 0.012)) -- +1.2% per tick
 			population_next = population + growth
 			births = births + growth
-
-		-- Slight surplus -> small growth.
-		elseif food_per_capita > 3 then
+		elseif net_per_capita > 0.05 then
+			-- Slight surplus -> small growth.
 			local growth = math.max(1, math.floor(population * 0.006)) -- +0.6% per tick
 			population_next = population + growth
 			births = births + growth
-
-		-- Barely enough -> roughly stable.
-		elseif food_per_capita > 1.8 then
+		elseif net_per_capita > -0.05 then
+			-- Basically balanced -> stable.
 			population_next = population
-
-		-- Low food -> gentle decline.
-		elseif food_per_capita > 1.0 then
+		elseif net_per_capita > -0.2 then
+			-- Mild deficit -> gentle decline.
 			local decline = math.max(1, math.floor(population * 0.003)) -- -0.3% per tick
 			population_next = population - decline
 			deaths = deaths + decline
-
-		-- Starvation -> stronger decline.
 		else
+			-- Strong deficit -> stronger decline.
 			local decline = math.max(1, math.floor(population * 0.01)) -- -1.0% per tick
 			population_next = population - decline
 			deaths = deaths + decline
@@ -244,20 +251,17 @@ local function compute_next_state(last)
 	-- 4) Add low-probability random births/deaths independent of food.
 	---------------------------------------------------------------------------
 	if population_next > 0 then
-		-- Expected random births and deaths based on current population.
 		local expected_random_births = population_next * BASELINE_BIRTH_RATE
 		local expected_random_deaths = population_next * BASELINE_DEATH_RATE
 
 		local random_births = sample_from_expected(expected_random_births)
 		local random_deaths = sample_from_expected(expected_random_deaths)
 
-		-- Apply random births.
 		if random_births > 0 then
 			population_next = population_next + random_births
 			births = births + random_births
 		end
 
-		-- Apply random deaths, but never drop below 2 here.
 		if random_deaths > 0 then
 			if population_next - random_deaths < 2 then
 				random_deaths = math.max(0, population_next - 2)
@@ -275,8 +279,7 @@ local function compute_next_state(last)
 	if population_next > 0 then
 		local food_per_capita_next = food_next / population_next
 
-		-- If the population is small but food per capita is high,
-		-- add an extra burst of births to help recovery.
+		-- If the population is small but total food is fine, give a small boost.
 		if population_next < 40 and food_per_capita_next > 5 then
 			local bonus = math.max(1, math.floor(population_next * 0.02)) -- +2% extra
 			population_next = population_next + bonus
@@ -309,10 +312,11 @@ local function compute_next_state(last)
 	end
 
 	local note = string.format(
-		"season=%s; season_factor=%.2f; prod_per_worker=%.2f; tick_index=%d; births=%d; deaths=%d",
+		"season=%s; season_factor=%.2f; prod_per_worker=%.2f; net_per_capita=%.3f; tick_index=%d; births=%d; deaths=%d",
 		season_name,
 		season_factor,
 		production_per_worker,
+		net_per_capita,
 		tick_index,
 		births,
 		deaths
