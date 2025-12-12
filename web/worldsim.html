@@ -148,6 +148,8 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
       }
 
       .chart-title {
@@ -271,22 +273,42 @@
 
       <!-- GRAPHS -->
       <main class="grid">
-        <!-- World chart -->
+        <!-- Food chart -->
+        <section class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">
+              <span class="dot" style="background: #40a02b"></span>
+              <span>Food</span>
+            </div>
+            <div class="pill">
+              <span class="pill-dot" style="background: #40a02b"></span>
+              <span>Food</span>
+            </div>
+          </div>
+          <div class="chart-meta">
+            Food stores over the last 24 hours (≈ 24 sim years).
+          </div>
+          <div class="chart-img-wrap">
+            <picture>
+              <source
+                srcset="worldsim/food_mobile.png"
+                media="(max-width: 768px)"
+              />
+              <img src="worldsim/food.png" alt="Food chart" />
+            </picture>
+          </div>
+        </section>
+
+        <!-- Population + Workers chart -->
         <section class="chart-card">
           <div class="chart-header">
             <div class="chart-title">
               <span class="dot"></span>
-              <span>Population &amp; Food</span>
+              <span>Population &amp; Workers</span>
             </div>
             <div class="pill">
               <span class="pill-dot" style="background: #1e66f5"></span>
               <span>Population</span>
-
-              <span
-                class="pill-dot"
-                style="background: #40a02b; margin-left: 0.5rem"
-              ></span>
-              <span>Food</span>
 
               <span
                 class="pill-dot"
@@ -295,45 +317,20 @@
               <span>Workers</span>
             </div>
           </div>
-          <div class="chart-meta">Last 2 hours of simulation time.</div>
-          <div class="chart-img-wrap">
-            <picture>
-              <source
-                srcset="worldsim/world_mobile.png"
-                media="(max-width: 768px)"
-              />
-              <img src="worldsim/world.png" alt="World simulation chart" />
-            </picture>
-          </div>
-        </section>
-
-        <!-- Births & deaths chart -->
-        <section class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">
-              <span class="dot" style="background: #40a02b"></span>
-              <span>Births &amp; Deaths</span>
-            </div>
-            <div class="pill">
-              <span class="pill-dot" style="background: #40a02b"></span>
-              <span>Births</span>
-              <span
-                class="pill-dot"
-                style="background: #dc8a78; margin-left: 0.5rem"
-              ></span>
-              <span>Deaths</span>
-            </div>
-          </div>
           <div class="chart-meta">
-            Births (green) and deaths (red), last 2 hours.
+            Population (blue) and workers (orange), last 24 hours (≈ 24 sim
+            years).
           </div>
           <div class="chart-img-wrap">
             <picture>
               <source
-                srcset="worldsim/birth_death_mobile.png"
+                srcset="worldsim/pop_workers_mobile.png"
                 media="(max-width: 768px)"
               />
-              <img src="worldsim/birth_death.png" alt="Birth and death chart" />
+              <img
+                src="worldsim/pop_workers.png"
+                alt="Population and workers chart"
+              />
             </picture>
           </div>
         </section>
@@ -346,6 +343,7 @@
 
     <!-- STATUS JSON SCRIPT -->
     <script>
+      // Format epoch seconds to a readable local time string.
       function formatTime(epochSeconds) {
         if (!epochSeconds || epochSeconds <= 0) return "–";
         const d = new Date(epochSeconds * 1000);
@@ -361,6 +359,7 @@
         return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
       }
 
+      // Parse numbers safely.
       function safeNum(v, decimals) {
         const n = Number(v);
         if (!isFinite(n)) return null;
@@ -374,6 +373,7 @@
 
       async function loadStatus() {
         try {
+          // Cache-bust so you always see the latest status.json.
           const res = await fetch("worldsim/status.json?_=" + Date.now());
           const data = await res.json();
 
@@ -405,6 +405,9 @@
           setText("status-pop-main", "–");
           setText("status-food-main", "–");
           setText("status-workers-main", "–");
+          setText("status-pop-updated", "Updated: –");
+          setText("status-food-updated", "Updated: –");
+          setText("status-workers-updated", "Updated: –");
         }
       }
 
